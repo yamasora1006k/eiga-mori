@@ -427,8 +427,8 @@
             });
         }
         function checkIfEmailExists() {
-    if (!scannedData || !scannedData.email) {
-        showStatus('メールアドレスが読み取れません', 'error');
+    if (!scannedData || !scannedData['メールアドレス'] || !scannedData['支援者']) {
+        showStatus('メールアドレスまたは支援者の情報が読み取れません', 'error');
         return;
     }
 
@@ -439,12 +439,15 @@
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: scannedData.email })
+        body: JSON.stringify({
+            email: scannedData['メールアドレス'],
+            supporter: scannedData['支援者']
+        })
     })
     .then(res => res.json())
     .then(data => {
         if (data.found) {
-            resultDiv.innerHTML += `<p class="text-green-600 font-bold mt-4">✅ 見つかりました（${data.row}行目）</p>`;
+            resultDiv.innerHTML += `<p class="text-green-600 font-bold mt-4">✅ 一致しました（${data.row}行目）</p>`;
         } else {
             resultDiv.innerHTML += `<p class="text-red-600 font-bold mt-4">❌ 見つかりませんでした</p>`;
         }
@@ -508,4 +511,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
