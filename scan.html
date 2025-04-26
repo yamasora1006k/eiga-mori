@@ -90,6 +90,11 @@
                 <div id="result" class="bg-gray-50 border border-gray-200 rounded-md p-4 mb-4 min-h-[100px]">
                     <p class="text-gray-500 text-center italic">QRコードをスキャンすると結果がここに表示されます</p>
                 </div>
+
+                <!-- 利用確認ボタン -->
+                <button id="confirmButton" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded flex items-center justify-center no-print mt-4 hidden">
+                    <i class="fas fa-check-circle mr-2"></i>チケット利用確認
+                </button>
                 
                 <!-- データ保存ボタン -->
                 <button id="saveButton" class="w-full bg-transparent text-transparent font-medium py- px-4 rounded flex items-center justify-center no-print cursor-default" disabled>
@@ -165,6 +170,7 @@ function loadCSVDatabase() {
         const resultDiv = document.getElementById('result');
         const statusDiv = document.getElementById('status');
         const historyDiv = document.getElementById('history');
+        const confirmButton = document.getElementById('confirmButton');
 
         // スキャンしたデータを保持する変数
         let scannedData = null;
@@ -224,10 +230,8 @@ function loadCSVDatabase() {
          * スキャン成功時のコールバック関数
          */
         function onScanSuccess(decodedText, decodedResult) {
-            // スキャン停止
             stopScanning();
 
-            // トークン形式かどうか確認（UUID形式の文字列と仮定）
             const tokenPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (tokenPattern.test(decodedText.trim())) {
                 fetchUserInfoFromToken(decodedText.trim()).then(userInfo => {
@@ -237,32 +241,25 @@ function loadCSVDatabase() {
                         saveButton.disabled = false;
                         addToHistory(userInfo);
 
-                        // FirestoreデータとQR側データの厳密一致判定
-                        if (userInfo.name && userInfo.email && userInfo.id) {
-                            const db = firebase.firestore();
-                            db.collection("date2").where("token", "==", userInfo.id).get().then(snapshot => {
-                                if (!snapshot.empty) {
-                                    const doc = snapshot.docs[0];
-                                    const data = doc.data();
-                                    const fsName = (data['支援者'] || data['name'] || '').trim().toLowerCase();
-                                    const fsEmail = (data['メールアドレス'] || data['email'] || '').trim().toLowerCase();
-                                    const sep = (data['種別'] || data['type'] || '').trim().toLowerCase();
+                        // ここでチケット利用状況をチェック
+                        const db = firebase.firestore();
+                        db.collection("date2").where("token", "==", userInfo.id).get().then(snapshot => {
+                            if (!snapshot.empty) {
+                                const doc = snapshot.docs[0];
+                                const data = doc.data();
 
-                                    const scannedName = userInfo.name.trim().toLowerCase();
-                                    const scannedEmail = userInfo.email.trim().toLowerCase();
-
-                                    if (fsName === scannedName && fsEmail === scannedEmail) {
-                                        alert("✅ Firestoreと完全一致しました！");
-                                    } else {
-                                        alert(`❌ 一致しませんでした！
-Firestore側: 支援者=${fsName}, メール=${fsEmail}, 種別=${sep}
-QRコード側: 支援者=${scannedName}, メール=${scannedEmail}, 種別=${sep}`);
-                                    }
+                                if (data.used) {
+                                    alert("⚠️ このチケットはすでに利用済みです！");
+                                    confirmButton.classList.add('hidden'); // ボタンは出さない
                                 } else {
-                                    alert("❌ 該当するトークンのデータがFirestoreに存在しません。");
+                                    alert("✅ チケットは未使用です。利用確認ボタンを押してください！");
+                                    confirmButton.classList.remove('hidden'); // ボタンを表示
+                                    confirmButton.onclick = () => confirmTicketUse(doc.id);
                                 }
-                            });
-                        }
+                            } else {
+                                alert("❌ チケットが見つかりませんでした！");
+                            }
+                        });
                     } else {
                         resultDiv.innerHTML = `<p class="text-red-500 font-medium">トークンに対応するデータが見つかりませんでした</p>`;
                         saveButton.disabled = true;
@@ -272,6 +269,7 @@ QRコード側: 支援者=${scannedName}, メール=${scannedEmail}, 種別=${se
                 processQRData(decodedText);
             }
         }
+
 
         /**
          * スキャン失敗時のコールバック関数
@@ -294,6 +292,21 @@ QRコード側: 支援者=${scannedName}, メール=${scannedEmail}, 種別=${se
                 });
             }
         }
+
+        function confirmTicketUse(docId) {
+            const db = firebase.firestore();
+            db.collection("date2").doc(docId).update({
+                入場: true
+            }).then(() => {
+                alert("✅ チケットを利用済みに更新しました！");
+                confirmButton.classList.add('hidden');
+                showStatus('チケットを利用済みにしました', 'success');
+            }).catch(error => {
+                console.error("更新エラー:", error);
+                showStatus('更新に失敗しました: ' + error.message, 'error');
+            });
+        }
+
 
         /**
          * QRコードデータを処理して画面に表示する関数
