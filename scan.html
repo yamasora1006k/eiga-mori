@@ -348,14 +348,15 @@ QRコード側: 支援者=${scannedName}, メール=${scannedEmail}, 種別=${se
         async function fetchUserInfoFromToken(token) {
             const db = firebase.firestore();
             try {
-                const snapshot = await db.collection("henkan_new1").where("token", "==", token).get();
+                const snapshot = await db.collection("date2").where("token", "==", token).get();
                 if (!snapshot.empty) {
                     const doc = snapshot.docs[0];
                     const data = doc.data();
                     return {
                         id: token,
                         name: data['支援者'] || data['name'] || '',
-                        email: data['メールアドレス'] || data['email'] || ''
+                        email: data['メールアドレス'] || data['email'] || '',
+                        sep: data['種別'] || data['type'] || ''
                     };
                 } else {
                     return null;
