@@ -248,7 +248,7 @@ function loadCSVDatabase() {
                                 const doc = snapshot.docs[0];
                                 const data = doc.data();
 
-                                if (data.used) {
+                                if (data.入場) {
                                     alert("⚠️ このチケットはすでに利用済みです！");
                                     confirmButton.classList.add('hidden'); // ボタンは出さない
                                 } else {
